@@ -1,9 +1,13 @@
 package com.imooc.pay.service.impl;
 
+import com.imooc.pay.dao.PayInfoMapper;
+import com.imooc.pay.enums.PayPlatformEnum;
+import com.imooc.pay.pojo.PayInfo;
 import com.imooc.pay.service.IPayService;
 import com.lly835.bestpay.config.WxPayConfig;
 import com.lly835.bestpay.enums.BestPayPlatformEnum;
 import com.lly835.bestpay.enums.BestPayTypeEnum;
+import com.lly835.bestpay.enums.OrderStatusEnum;
 import com.lly835.bestpay.model.PayRequest;
 import com.lly835.bestpay.model.PayResponse;
 import com.lly835.bestpay.service.BestPayService;
@@ -21,19 +25,19 @@ public class PayService implements IPayService {
     @Autowired
     private BestPayService bestPayService;
 
+    @Autowired
+    private PayInfoMapper payInfoMapper;
+
     /**
      * 创建/发起支付
-     *
-     * @param orderId
-     * @param amount
-     * @return
      */
     @Override
     public PayResponse create(String orderId, BigDecimal amount,BestPayTypeEnum bestPayTypeEnum) {
-        if (bestPayTypeEnum != BestPayTypeEnum.WXPAY_NATIVE && bestPayTypeEnum != BestPayTypeEnum.ALIPAY_PC){
-        }
 
         //写入数据库
+        PayInfo payInfo = new PayInfo(Long.parseLong(orderId), PayPlatformEnum.getByBestPayTypeEnum(bestPayTypeEnum).getCode(), OrderStatusEnum.NOTPAY.name(), amount);
+        payInfoMapper.insertSelective(payInfo);
+
         PayRequest request = new PayRequest();
         request.setOrderName("最好的支付sdk");
         request.setOrderId(orderId);
@@ -49,7 +53,6 @@ public class PayService implements IPayService {
     /**
      * 异步通知处理
      *
-     * @param notifyData
      */
     @Override
     public String asyncNotify(String notifyData) {

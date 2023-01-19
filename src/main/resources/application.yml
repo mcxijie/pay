@@ -5,3 +5,7 @@ spring:
     password: root
     url: jdbc:mysql://127.0.0.1:3306/mall?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=Asia/Shanghai
 
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:mappers/*.xml
