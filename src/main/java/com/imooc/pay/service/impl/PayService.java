@@ -46,7 +46,7 @@ public class PayService implements IPayService {
         request.setPayTypeEnum(bestPayTypeEnum);
 
         PayResponse response = bestPayService.pay(request);
-        log.info("response={}", response);
+        log.info("发起支付 response={}", response);
 
         return response;
     }
@@ -94,5 +94,13 @@ public class PayService implements IPayService {
 
         throw new RuntimeException("异步通知中错误的支付平台");
 
+    }
+
+    /**
+     * 查询支付记录(通过订单号)
+     */
+    @Override
+    public PayInfo queryByOrderId(String orderId) {
+        return payInfoMapper.selectByOrderNo(Long.parseLong(orderId));
     }
 }
