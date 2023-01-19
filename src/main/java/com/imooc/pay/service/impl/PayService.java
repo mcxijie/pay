@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 @Slf4j
 @Service
@@ -32,7 +33,7 @@ public class PayService implements IPayService {
      * 创建/发起支付
      */
     @Override
-    public PayResponse create(String orderId, BigDecimal amount,BestPayTypeEnum bestPayTypeEnum) {
+    public PayResponse create(String orderId, BigDecimal amount, BestPayTypeEnum bestPayTypeEnum) {
 
         //写入数据库
         PayInfo payInfo = new PayInfo(Long.parseLong(orderId), PayPlatformEnum.getByBestPayTypeEnum(bestPayTypeEnum).getCode(), OrderStatusEnum.NOTPAY.name(), amount);
@@ -52,7 +53,6 @@ public class PayService implements IPayService {
 
     /**
      * 异步通知处理
-     *
      */
     @Override
     public String asyncNotify(String notifyData) {
@@ -61,14 +61,34 @@ public class PayService implements IPayService {
         log.info("notifyData={}", payResponse);
 
         //2.金额校验（从数据库查订单）
-        //3.修改订单支付状态
+        //比较严重，正常情况下是不会发生的。发出告警：短信。
+        PayInfo payInfo = payInfoMapper.selectByOrderNo(Long.parseLong(payResponse.getOrderId()));
+        if (payInfo == null) {
+            throw new RuntimeException("通过OrderNo查询到的结果是null");
+        }
+
+        //如果订单支付状态不是已支付
+        if (!payInfo.getPlatformStatus().equals(OrderStatusEnum.SUCCESS.name())) {
+            //Double类型比较大小，精度。1.00  1.0
+            if (payInfo.getPayAmount().compareTo(BigDecimal.valueOf(payResponse.getOrderAmount())) != 0) {
+                //告警
+                throw new RuntimeException("异步通知中的金额和数据库里的不一致,orderNo=" + payResponse.getOrderId());
+            }
+
+            //3.修改订单支付状态
+            payInfo.setPlatformStatus(OrderStatusEnum.SUCCESS.name());
+            payInfo.setPlatformNumber(payResponse.getOutTradeNo());
+            payInfo.setUpdateTime(new Date());
+            payInfoMapper.updateByPrimaryKeySelective(payInfo);
+
+        }
         //4.告诉微信不要再通知了
-        if (payResponse.getPayPlatformEnum() == BestPayPlatformEnum.WX){
+        if (payResponse.getPayPlatformEnum() == BestPayPlatformEnum.WX) {
             return "<xml>\n" +
                     "  <return_code><![CDATA[SUCCESS]]></return_code>\n" +
                     "  <return_msg><![CDATA[OK]]></return_msg>\n" +
                     "</xml>";
-        }else if (payResponse.getPayPlatformEnum() == BestPayPlatformEnum.ALIPAY){
+        } else if (payResponse.getPayPlatformEnum() == BestPayPlatformEnum.ALIPAY) {
             return "success";
         }
 
